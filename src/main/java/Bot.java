@@ -9,6 +9,8 @@ import org.telegram.telegrambots.exceptions.TelegramApiException;
 public class Bot extends TelegramLongPollingBot {
     public static void main(String[] args) {
         ApiContextInitializer.init();
+        JDBCPostgreSQL.connect();
+        JDBCPostgreSQL.addWord("kek");
         TelegramBotsApi botapi = new TelegramBotsApi();
         try {
             botapi.registerBot(new Bot());
@@ -26,11 +28,9 @@ public class Bot extends TelegramLongPollingBot {
     public void onUpdateReceived(Update e) {
         Message msg = e.getMessage();
         String txt = msg.getText();
+        String username = msg.getChat().getUserName();
         if (txt.equals("/start")) {
-            sendMsg(msg, "добрый день!");
-        }
-        else if(txt.equals("/whoareyou")) {
-            sendMsg(msg, "я sonya!");
+            sendMsg(msg, "Hello, " + username + "!");
         }
     }
 
