@@ -27,24 +27,24 @@ CREATE SEQUENCE chat_id_seq
     CACHE 1;
 
 CREATE TABLE sentence (
-    sentence_id integer PRIMARY KEY DEFAULT nextval('sentence_id_seq'),
+    id integer PRIMARY KEY DEFAULT nextval('sentence_id_seq'),
     text character varying NOT NULL
 );
 
 CREATE TABLE word (
-    word_id integer PRIMARY KEY DEFAULT nextval('word_id_seq'),
-    text character varying NOT NULL,
-    weight integer
+    id integer PRIMARY KEY DEFAULT nextval('word_id_seq'),
+    text character varying NOT NULL
 );
 
 CREATE TABLE association (
-    association_id integer PRIMARY KEY DEFAULT nextval('association_id_seq'),
-    word_id integer NOT NULL references word(word_id),
-    sentence_id integer NOT NULL references sentence(sentence_id)
+    id integer PRIMARY KEY DEFAULT nextval('association_id_seq'),
+    word_id integer NOT NULL references word(id),
+    sentence_id integer NOT NULL references sentence(id),
+    weight integer
 );
 
 CREATE TABLE chat (
-    chat_id integer PRIMARY KEY DEFAULT nextval('chat_id_seq'),
+    id integer PRIMARY KEY DEFAULT nextval('chat_id_seq'),
     interlocutor character varying NOT NULL,
-    sentence_id integer NOT NULL references sentence(sentence_id)
+    sentence_id integer NOT NULL references sentence(id)
 );

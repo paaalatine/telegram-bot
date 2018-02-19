@@ -1,7 +1,4 @@
-import java.sql.Connection;
-import java.sql.DriverManager;
-import java.sql.PreparedStatement;
-import java.sql.SQLException;
+import java.sql.*;
 
 public class JDBCPostgreSQL {
 
@@ -37,29 +34,56 @@ public class JDBCPostgreSQL {
         }
     }
 
-    public static void addSentence(String sentence){
+    public static int addTextData(String text, String entity){
         try {
-            PreparedStatement st = db.prepareStatement("INSERT INTO sentence (text) VALUES (?)");
-            st.setString(1, sentence);
-            st.executeUpdate();
-        } catch (SQLException e) { }
+            int rowCounter = 0;
+            PreparedStatement selectSt = db.prepareStatement("SELECT id FROM " + entity + " WHERE text = ?");
+            PreparedStatement insertSt = db.prepareStatement("INSERT INTO " + entity + " (text) VALUES (?) RETURNING id");
+
+            selectSt.setString(1, text);
+            ResultSet rs = selectSt.executeQuery();
+
+            while (rs.next()) rowCounter++;
+
+            if (rowCounter == 0) {
+                insertSt.setString(1, text);
+                rs = insertSt.executeQuery();
+                rs.next();
+                return rs.getInt(1);
+            }
+            rs.first();
+            return rs.getInt(1);
+        } catch (SQLException e) { return 1; }
     }
 
-    public static void addWord(String word){
+    public static int addAssociation(int wordId, int sentenceId, int weight){
         try {
-            PreparedStatement st = db.prepareStatement("INSERT INTO word (text) VALUES (?)");
-            st.setString(1, word);
-            st.executeUpdate();
-        } catch (SQLException e) { }
-    }
+            int rowCounter = 0;
+            PreparedStatement selectSt = db.prepareStatement("SELECT id, weight FROM association WHERE word_id = ? AND sentence_id = ?");
+            PreparedStatement insertSt = db.prepareStatement("INSERT INTO association (word_id, sentence_id, weight) VALUES (?, ?, ?) RETURNING id");
+            PreparedStatement updateSt = db.prepareStatement("UPDATE association SET weight = ? WHERE id = ?");
 
-    public static void addAssociation(int wordId, int sentenceId){
-        try {
-            PreparedStatement st = db.prepareStatement("INSERT INTO association (word_id, sentence_id) VALUES (?, ?)");
-            st.setInt(1, wordId);
-            st.setInt(2, sentenceId);
-            st.executeUpdate();
-        } catch (SQLException e) { }
+            selectSt.setInt(1, wordId);
+            selectSt.setInt(2, sentenceId);
+            ResultSet rs = selectSt.executeQuery();
+
+            while (rs.next()) rowCounter++;
+
+            if (rowCounter == 0) {
+                insertSt.setInt(1, wordId);
+                insertSt.setInt(2, sentenceId);
+                insertSt.setInt(3, weight);
+                rs = insertSt.executeQuery();
+                rs.next();
+                return rs.getInt(1);
+            }
+            rs.first();
+            updateSt.setInt(1, weight + rs.getInt(2));
+            updateSt.setInt(2, rs.getInt(1));
+            updateSt.executeUpdate();
+            return rs.getInt(1);
+
+        } catch (SQLException e) { return 1; }
     }
 
     public static void addChat(String interlocutor, int sentenceId){
@@ -68,6 +92,7 @@ public class JDBCPostgreSQL {
             st.setString(1, interlocutor);
             st.setInt(2, sentenceId);
             st.executeUpdate();
+
         } catch (SQLException e) { }
     }
 }
