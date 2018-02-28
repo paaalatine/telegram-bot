@@ -10,7 +10,6 @@
 
     <dependencies>
 
-        <!-- COMMON LIBS (Log4J2 & Vavr) -->
         <dependency>
            <groupId>org.apache.logging.log4j</groupId>
            <artifactId>log4j-core</artifactId>
@@ -27,7 +26,7 @@
         <dependency>
             <groupId>org.projectlombok</groupId>
             <artifactId>lombok</artifactId>
-            <version>0.11.0</version>
+            <version>LATEST</version>
             <scope>provided</scope>
         </dependency>
 
@@ -71,6 +70,12 @@
             <artifactId>junit</artifactId>
             <version>4.12</version>
             <scope>test</scope>
+        </dependency>
+
+        <dependency>
+            <groupId>com.zaxxer</groupId>
+            <artifactId>HikariCP</artifactId>
+            <version>LATEST</version>
         </dependency>
 
     </dependencies>

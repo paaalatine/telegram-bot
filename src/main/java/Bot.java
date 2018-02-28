@@ -4,47 +4,65 @@ import edu.stanford.nlp.pipeline.Annotation;
 import edu.stanford.nlp.pipeline.StanfordCoreNLP;
 import edu.stanford.nlp.util.CoreMap;
 
+import lombok.AccessLevel;
 import lombok.SneakyThrows;
+import lombok.experimental.FieldDefaults;
 import org.telegram.telegrambots.ApiContextInitializer;
 import org.telegram.telegrambots.TelegramBotsApi;
 import org.telegram.telegrambots.api.methods.send.SendMessage;
 import org.telegram.telegrambots.api.objects.Message;
 import org.telegram.telegrambots.api.objects.Update;
 import org.telegram.telegrambots.bots.TelegramLongPollingBot;
-import org.telegram.telegrambots.exceptions.TelegramApiException;
 
-import java.io.IOException;
-import java.nio.file.Files;
-import java.nio.file.Paths;
-import java.util.ArrayList;
-import java.util.LinkedList;
-import java.util.List;
-import java.util.Properties;
+import java.io.InputStream;
+import java.util.*;
 
+
+@FieldDefaults(level = AccessLevel.PRIVATE)
 public class Bot extends TelegramLongPollingBot {
 
-    private String lastBotReplica = "";
-    private String humanResponse = "";
-    private boolean teach = false;
-    private static final String botUsername = "paaalatine_bot";
-    private static final JDBCPostgreSQL db = new JDBCPostgreSQL();
+    final String botUsername;
+    final String botToken;
+    final JdbcPostgreSql db;
+
+    String lastBotReplica;
+    String humanResponse;
+    boolean teach;
 
     @SneakyThrows
-    public static void main(String[] args) throws TelegramApiException{
+    public Bot() {
+        Properties properties = new Properties();
+        try(InputStream inputStream = Bot.class.getResourceAsStream("/bot.properties")) {
+            properties.load(inputStream);
+        }
+        lastBotReplica = properties.getProperty("lastBotReplica", "");
+        humanResponse = properties.getProperty("humanResponse", "");
+        botUsername = Optional.ofNullable(properties.getProperty("botUsername"))
+                .orElseThrow(() -> new RuntimeException("Botname is not found! " +
+                                                        "Specify it in \"bot.properties\"."));
+        botToken = Optional.ofNullable(properties.getProperty("botToken"))
+            .orElseThrow(() -> new RuntimeException("Token is not found! " +
+                                                    "Specify it in \"bot.properties\"."));
+        db = new JdbcPostgreSql();
+    }
+
+    @SneakyThrows
+    public static void main(String[] args) {
         ApiContextInitializer.init();
         new TelegramBotsApi().registerBot(new Bot());
     }
 
     @Override
-    public String getBotUsername() {
-        return botUsername;
-    }
+    public String getBotUsername() { return botUsername; }
+
+    @Override
+    public String getBotToken() { return botToken; }
 
     @Override
     public void onUpdateReceived(Update e) {
         Message recievedMsg = e.getMessage();
         humanResponse = recievedMsg.getText();
-        if (teach){
+        if (teach) {
             teach(lastBotReplica, humanResponse);
             lastBotReplica = "Thank you.";
             sendMsg(recievedMsg, lastBotReplica);
@@ -54,10 +72,9 @@ public class Bot extends TelegramLongPollingBot {
         else {
             List<String> humanWords = getWords(humanResponse);
             int[] humanWordsId = new int[humanWords.size()];
-            for(int i = 0; i < humanWords.size(); i++) {
+            for(int i = 0; i < humanWords.size(); i++)
                 humanWordsId[i] = db.addWord(humanWords.get(i));
-            }
-            int sentenceId = db.getResponse(humanWordsId);
+            int sentenceId = db.getResponse(humanWordsId, recievedMsg.getChat().getUserName());
             if (sentenceId == 0) {
                 lastBotReplica = "I don't understand. Teach me what I should say in this situation, please.";
                 teach = true;
@@ -65,6 +82,7 @@ public class Bot extends TelegramLongPollingBot {
                 lastBotReplica = humanResponse;
             }
             else {
+                db.addUsedSentence(recievedMsg.getChat().getUserName(), sentenceId);
                 teach(lastBotReplica, humanResponse);
                 lastBotReplica = db.getSentence(sentenceId);
                 sendMsg(recievedMsg, lastBotReplica);
@@ -72,37 +90,23 @@ public class Bot extends TelegramLongPollingBot {
         }
     }
 
-    @Override
-    public String getBotToken() {
-        String content;
-        try {
-            content = "521024889:AAF75zgck9a6LeMM4IUeglsOcfAtlEgzb_Y";
-        } catch (Exception e) { content = null; }
-        return content;
-    }
-
     @SuppressWarnings("deprecation")
+    @SneakyThrows
     private void sendMsg(Message msg, String text) {
-        SendMessage s = new SendMessage();
-        s.setChatId(msg.getChatId());
-        s.setText(text);
-        try {
-            sendMessage(s);
-        } catch (TelegramApiException e){
-            e.printStackTrace();
-        }
+        sendMessage(new SendMessage()
+                .setChatId(msg.getChatId())
+                .setText(text));
     }
 
-    private void setAssociations(List<String> replicaWords, String response){
+    private void setAssociations(List<String> replicaWords, String response) {
         int sentenceId = db.addSentence(response);
         int wordId, associationId, sentenceLength = 0;
-        for(String word : replicaWords){
+        for(String word : replicaWords)
            sentenceLength += word.length();
-        }
-        for (String word : replicaWords){
+        for (String word : replicaWords) {
             wordId = db.addWord(word);
             double oldWeight = db.getAssociationWeight(wordId, sentenceId);
-            double newWeight = (oldWeight * sentenceLength + 1)/sentenceLength;
+            double newWeight = (oldWeight * sentenceLength + 20)/sentenceLength;
             db.updateWord(wordId);
             associationId = db.addAssociation(wordId, sentenceId);
             db.updateAssociation(associationId, newWeight);
@@ -124,11 +128,9 @@ public class Bot extends TelegramLongPollingBot {
         pipeline.annotate(document);
         List<CoreMap> sentences = document.get(CoreAnnotations.SentencesAnnotation.class);
         List<String> lemmas = new LinkedList<>();
-        for(CoreMap sentence : sentences){
-            for(CoreLabel word : sentence.get(CoreAnnotations.TokensAnnotation.class)){
+        for(CoreMap sentence : sentences)
+            for(CoreLabel word : sentence.get(CoreAnnotations.TokensAnnotation.class))
                 lemmas.add(word.get(CoreAnnotations.LemmaAnnotation.class));
-            }
-        }
         return new ArrayList<>(lemmas);
     }
 }

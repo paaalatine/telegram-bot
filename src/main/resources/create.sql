@@ -52,5 +52,6 @@ CREATE TABLE association (
 CREATE TABLE chat (
     id integer PRIMARY KEY DEFAULT nextval('chat_id_seq'),
     interlocutor character varying NOT NULL,
-    sentence_id integer NOT NULL references sentence(id)
+    sentence_id integer NOT NULL references sentence(id),
+    times INTEGER NOT NULL
 );
