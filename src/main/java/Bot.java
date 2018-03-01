@@ -61,33 +61,43 @@ public class Bot extends TelegramLongPollingBot {
     @Override
     public void onUpdateReceived(Update e) {
         Message recievedMsg = e.getMessage();
-        humanResponse = recievedMsg.getText();
-        if (teach) {
-            teach(lastBotReplica, humanResponse);
-            lastBotReplica = "Thank you.";
-            sendMsg(recievedMsg, lastBotReplica);
-            lastBotReplica = "";
-            teach = false;
-        }
+        String msgText = recievedMsg.getText();
+        humanResponse = msgText != null ? msgText : "";
+        if (teach)
+            teachAndThank(recievedMsg);
         else {
             List<String> humanWords = getWords(humanResponse);
             int[] humanWordsId = new int[humanWords.size()];
             for(int i = 0; i < humanWords.size(); i++)
                 humanWordsId[i] = db.addWord(humanWords.get(i));
             int sentenceId = db.getResponse(humanWordsId, recievedMsg.getChat().getUserName());
-            if (sentenceId == 0) {
-                lastBotReplica = "I don't understand. Teach me what I should say in this situation, please.";
-                teach = true;
-                sendMsg(recievedMsg, lastBotReplica);
-                lastBotReplica = humanResponse;
-            }
-            else {
-                db.addUsedSentence(recievedMsg.getChat().getUserName(), sentenceId);
-                teach(lastBotReplica, humanResponse);
-                lastBotReplica = db.getSentence(sentenceId);
-                sendMsg(recievedMsg, lastBotReplica);
-            }
+            if (sentenceId == 0)
+                askToTeach(recievedMsg);
+            else
+                answer(recievedMsg, sentenceId);
         }
+    }
+
+    private void answer(Message msg, int sentenceId) {
+        db.addUsedSentence(msg.getChat().getUserName(), sentenceId);
+        teach(lastBotReplica, humanResponse);
+        lastBotReplica = db.getSentence(sentenceId);
+        sendMsg(msg, lastBotReplica);
+    }
+
+    private void teachAndThank(Message msg) {
+        teach(lastBotReplica, humanResponse);
+        lastBotReplica = "Thank you.";
+        sendMsg(msg, lastBotReplica);
+        lastBotReplica = "";
+        teach = false;
+    }
+
+    private void askToTeach(Message msg) {
+        lastBotReplica = "I don't understand. Teach me what I should say in this situation, please.";
+        teach = true;
+        sendMsg(msg, lastBotReplica);
+        lastBotReplica = humanResponse;
     }
 
     @SuppressWarnings("deprecation")

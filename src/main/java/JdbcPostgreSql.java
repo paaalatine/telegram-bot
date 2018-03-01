@@ -173,7 +173,7 @@ public class JdbcPostgreSql {
         String INSERT_QUERY = "INSERT INTO temp SELECT association.sentence_id, association.weight * word.weight / (SELECT COALESCE(MAX(times), 1) FROM chat WHERE chat.interlocutor = ? AND chat.sentence_id = association.sentence_id) FROM association " +
                 "JOIN word ON association.word_id = word.id " +
                 "WHERE word_id = ?";
-        String SELECT_QUERY = "SELECT sentence_id, SUM(weight) FROM temp GROUP BY sentence_id HAVING SUM(weight) >= 0.0005 ORDER BY SUM(weight) DESC";
+        String SELECT_QUERY = "SELECT sentence_id, SUM(weight) FROM temp GROUP BY sentence_id ORDER BY SUM(weight) DESC";
         try (Connection con = ds.getConnection();
              PreparedStatement deleteSt = con.prepareStatement(DELETE_QUERY);
              PreparedStatement insertSt = con.prepareStatement(INSERT_QUERY);
