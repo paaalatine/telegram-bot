@@ -116,7 +116,7 @@ public class Bot extends TelegramLongPollingBot {
         for (String word : replicaWords) {
             wordId = db.addWord(word);
             double oldWeight = db.getAssociationWeight(wordId, sentenceId);
-            double newWeight = (oldWeight * sentenceLength + 20)/sentenceLength;
+            double newWeight = (oldWeight * sentenceLength + 1)/sentenceLength;
             db.updateWord(wordId);
             associationId = db.addAssociation(wordId, sentenceId);
             db.updateAssociation(associationId, newWeight);
